@@ -65,7 +65,8 @@ class ZSpotify:
     def get_auth_header(cls):
         return {
             'Authorization': f'Bearer {cls.__get_auth_token()}',
-            'Accept-Language': f'{cls.CONFIG.get_language()}'
+            'Accept-Language': f'{cls.CONFIG.get_language()}',
+            'accept': 'application/json'
         }
 
     @classmethod

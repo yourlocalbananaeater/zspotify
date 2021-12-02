@@ -9,7 +9,8 @@ from librespot.metadata import TrackId
 from ffmpy import FFmpeg
 
 from const import TRACKS, ALBUM, NAME, ITEMS, DISC_NUMBER, TRACK_NUMBER, IS_PLAYABLE, ARTISTS, IMAGES, URL, \
-    RELEASE_DATE, ID, TRACKS_URL, SAVED_TRACKS_URL, TRACK_STATS_URL, CODEC_MAP, EXT_MAP, DURATION_MS
+    RELEASE_DATE, ID, TRACKS_URL, SAVED_TRACKS_URL, TRACK_STATS_URL, CODEC_MAP, EXT_MAP, DURATION_MS, \
+    LYRICS_FORMAT, LYRICS_LOCATION, LYRICS_URL
 from termoutput import Printer, PrintChannel
 from utils import fix_filename, set_audio_tags, set_music_thumbnail, create_download_directory, \
     get_directory_song_ids, add_to_directory_song_ids, get_previously_downloaded, add_to_archive, fmt_seconds
@@ -31,6 +32,25 @@ def get_saved_tracks() -> list:
             break
 
     return songs
+
+def get_song_lyrics(song_id) -> str:
+    (raw_lyrics, json_lyrics) = ZSpotify.invoke_url(f'{LYRICS_URL}?ids={song_id}&market=from_token')
+    lyrics_info = json.loads(raw_lyrics)
+    lyrics = []
+    for data in lyrics_info['lyrics']['lines']:
+        words = data['words']
+        timestamp = int(data['startTimeMs'])
+        ts_hundredth = (timestamp % 1000) // 100
+        ts_hundredth = str(ts_hundredth) if (ts_hundredth > 9) else "0" + str(ts_hundredth)
+        ts_second = (timestamp // 1000) % 60
+        ts_second = str(ts_second) if (ts_second > 9) else "0" + str(ts_second)
+        ts_minute = (timestamp // 1000) // 60
+        if LYRICS_FORMAT == 'lrc':
+            lyrics.append(f"[{ts_minute}:{ts_second}.{ts_hundredth}] {words}")
+        elif LYRICS_FORMAT == 'txt':
+            lyrics.append(words)
+    lyrics = '\n'.join(lyrics)
+    return lyrics
 
 
 def get_song_info(song_id) -> Tuple[List[str], str, str, Any, Any, Any, Any, Any, Any, int]:
@@ -104,6 +124,9 @@ def download_track(mode: str, track_id: str, extra_keys={}, disable_progressbar=
 
         filename = os.path.join(ZSpotify.CONFIG.get_root_path(), output_template)
         filedir = os.path.dirname(filename)
+        lyrics_output_template = output_template.replace(ext, LYRICS_FORMAT)
+
+        lyrics_filename = os.path.join(ZSpotify.CONFIG.get_root_path(), output_template)
 
         filename_temp = filename
         if ZSpotify.CONFIG.get_temp_download_dir() != '':
@@ -121,7 +144,7 @@ def download_track(mode: str, track_id: str, extra_keys={}, disable_progressbar=
             ext = os.path.splitext(os.path.basename(filename))[1]
 
             filename = os.path.join(filedir, f'{fname}_{c}{ext}')
-
+            lyrics_filename = os.path.join(filedir, f'{fname}_{c}{LYRICS_FORMAT}')
 
     except Exception as e:
         Printer.print(PrintChannel.ERRORS, '###   SKIPPING SONG - FAILED TO QUERY METADATA   ###')
@@ -129,6 +152,15 @@ def download_track(mode: str, track_id: str, extra_keys={}, disable_progressbar=
         Printer.print(PrintChannel.ERRORS, str(e) + "\n")
         Printer.print(PrintChannel.ERRORS, "".join(traceback.TracebackException.from_exception(e).format()) + "\n")
     else:
+        lyrics = ''
+
+        try:
+            lyrics = get_song_lyrics(track_id)
+        except Exception as e:
+            Printer.print(PrintChannel.ERRORS, '###   SKIPPING LYRICS: ' + song_name + ' (LYRICS NOT FOUND)   ###')
+            Printer.print(PrintChannel.ERRORS, 'Track_ID: ' + str(track_id) + "\n")
+            Printer.print(PrintChannel.ERRORS, str(e) + "\n")
+
         try:
             if not is_playable:
                 Printer.print(PrintChannel.SKIPS, '\n###   SKIPPING: ' + song_name + ' (SONG IS UNAVAILABLE)   ###' + "\n")
@@ -170,7 +202,13 @@ def download_track(mode: str, track_id: str, extra_keys={}, disable_progressbar=
                     time_downloaded = time.time()
 
                     convert_audio_format(filename_temp)
-                    set_audio_tags(filename_temp, artists, name, album_name, release_year, disc_number, track_number)
+                    if LYRICS_LOCATION == 'embed':
+                        set_audio_tags(filename_temp, artists, name, album_name, release_year, disc_number, track_number, lyrics)
+                    else:
+                        set_audio_tags(filename_temp, artists, name, album_name, release_year, disc_number, track_number)
+                        with open(lyrics_filename, 'w') as file:
+                                file.write(lyrics)
+
                     set_music_thumbnail(filename_temp, image_url)
 
                     if filename_temp != filename:

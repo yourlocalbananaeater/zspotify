@@ -52,6 +52,8 @@ TRACK_NUMBER = 'track_number'
 
 DISC_NUMBER = 'disc_number'
 
+LYRICS = ['lyrics']
+
 SHOW = 'show'
 
 ERROR = 'error'
@@ -99,3 +101,10 @@ EXT_MAP = {
     'opus': 'ogg',
     'vorbis': 'ogg',
 }
+
+# Flag to check lyrics format download. Choose txt for regular text lyrics, lrc for time synced lyrics
+LYRICS_FORMAT = 'lrc'
+# embed embeds the lyrics into the mp3 file, choose standalone for a putting it into a separate file.
+LYRICS_LOCATION = 'embed'
+
+LYRICS_URL = "https://spclient.wg.spotify.com/color-lyrics/v2/track/"

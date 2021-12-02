@@ -11,7 +11,7 @@ import music_tag
 import requests
 
 from const import ARTIST, TRACKTITLE, ALBUM, YEAR, DISCNUMBER, TRACKNUMBER, ARTWORK, \
-    WINDOWS_SYSTEM, ALBUMARTIST
+    WINDOWS_SYSTEM, ALBUMARTIST, LYRICS
 from zspotify import ZSpotify
 
 
@@ -124,7 +124,7 @@ def clear() -> None:
         os.system('clear')
 
 
-def set_audio_tags(filename, artists, name, album_name, release_year, disc_number, track_number) -> None:
+def set_audio_tags(filename, artists, name, album_name, release_year, disc_number, track_number, lyrics) -> None:
     """ sets music_tag metadata """
     tags = music_tag.load_file(filename)
     tags[ALBUMARTIST] = artists[0]
@@ -134,6 +134,7 @@ def set_audio_tags(filename, artists, name, album_name, release_year, disc_numbe
     tags[YEAR] = release_year
     tags[DISCNUMBER] = disc_number
     tags[TRACKNUMBER] = track_number
+    tags[LYRICS] = lyrics
     tags.save()
 
 
